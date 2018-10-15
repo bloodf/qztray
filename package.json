@@ -1,14 +1,14 @@
 {
-    "name": "auttarjsclass",
+    "name": "qztrayjs",
     "version": "0.0.1",
-    "description": "Auttar WebSocket JS Class. An easy implementation of Auttar WebSocket Service.",
+    "description": "QZTray JS Class wrapper to make it easy to implement",
     "main": "index.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/bloodf/auttar"
+        "url": "https://github.com/bloodf/qztray"
     },
     "keywords": [
         "auttar"
