@@ -1,0 +1,22 @@
+{
+    "name": "auttarjsclass",
+    "version": "0.0.1",
+    "description": "Auttar WebSocket JS Class. An easy implementation of Auttar WebSocket Service.",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/bloodf/auttar"
+    },
+    "keywords": [
+        "auttar"
+    ],
+    "author": {
+        "name": "Heitor Ramon Ribeiro",
+        "email": "heitor.ramon@gmail.com"
+    },
+    "private": false,
+    "license": "MIT"
+}
