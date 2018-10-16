@@ -1,6 +1,6 @@
 
 # QZTray JS Class Wrapper
-An JS Class Wrapper for Qz-Tray, making it easier to implement the Qz-Tray on you system.
+An JS Class Wrapper for Qz-Tray (https://qz.io/), making it easier to implement the Qz-Tray on you system.
 
 ```
 $ npm install qztrayjsclass
