@@ -1,7 +1,7 @@
 {
-    "name": "qztrayjs",
+    "name": "qztrayjsclass",
     "version": "0.0.1",
-    "description": "QZTray JS Class wrapper to make it easy to implement",
+    "description": "QZTray JS Class wrapper for easy implementation of the QZ-Tray.",
     "main": "index.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1"
@@ -18,5 +18,9 @@
         "email": "heitor.ramon@gmail.com"
     },
     "private": false,
-    "license": "MIT"
+    "license": "MIT",
+    "dependencies": {
+        "js-sha256": "^0.9.0",
+        "qz-tray": "^2.0.7"
+    }
 }
