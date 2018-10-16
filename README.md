@@ -63,8 +63,7 @@ QzTray.rawPrint({
 | signUrl | string | ''
 | printer | string | REQUIRED
 
-`If you dont pass the certificateUrl or rawCertificate, tthe requests will be treated as anonymous`
-`If you dont pass the signUrl, the requests will be treated as anonymous`
+`If you dont pass the certificateUrl or rawCertificate, the requests will be treated as anonymous`
 
 #### PDF Print
 |Property|Type|Default|

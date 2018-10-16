@@ -1,16 +1,12 @@
 /* eslint-disable no-underscore-dangle */
 import QzTray from 'qz-tray';
 import sha256 from 'js-sha256';
-import {
-    logError,
-    logInfo,
-    required,
-} from './helpers';
+import { logError, logInfo, required } from './helpers';
 
 /**
- * QZ Tray class wrapper
  * @version 1.0
  * @overview QZTrayPrinter
+ * QZ Tray class wrapper
  * @class QZTrayPrinter
  * @requires Axios
  * @requires QzTray
@@ -67,260 +63,257 @@ import {
  * @property {number} [signingTimestamp Required with <code>signature</code>. Timestamp used with pre-signed content.
  */
 class QZTrayPrinter {
-    /**
-     * @constructor
-     * @param {QZTrayPrinterConstructor} parameters
-     */
+  /**
+   * @constructor
+   * @param {QZTrayPrinterConstructor} parameters
+   */
 
-    /**
-     * @typedef {object} QZTrayPrinterConstructor
-     * @property {string} certificateUrl - QZ Tray Certificate URL
-     * @property {string} signUrl - QZ Tray Certificate URL
-     * @property {QZTrayPrinter_Printer} printer - Printer Name
-     */
-    /**
-     * @typedef {string|object} QZTrayPrinter_Printer printer Name of printer.
-     * Use object type to specify printing to file or host.
-     * @property {string} name Name of printer to send printing.
-     * @property {string} file Name of file to send printing.
-     * @property {string} host IP address or host name to send printing.
-     * @property {string} port Port used by &lt;printer.host>.
-     */
-    constructor(parameters) {
-        this.__qz = QzTray;
-        this.__qz.api.setPromiseType(resolver => new Promise(resolver));
-        this.__qz.api.setWebSocketType(WebSocket);
-        this.__qz.api.setSha256Type(data => sha256(data));
+  /**
+   * @typedef {object} QZTrayPrinterConstructor
+   * @property {string} certificateUrl - QZ Tray Certificate URL
+   * @property {string} signUrl - QZ Tray Certificate URL
+   * @property {QZTrayPrinter_Printer} printer - Printer Name
+   */
+  /**
+   * @typedef {string|object} QZTrayPrinter_Printer printer Name of printer.
+   * Use object type to specify printing to file or host.
+   * @property {string} name Name of printer to send printing.
+   * @property {string} file Name of file to send printing.
+   * @property {string} host IP address or host name to send printing.
+   * @property {string} port Port used by &lt;printer.host>.
+   */
+  constructor(parameters) {
+    this.__qz = QzTray;
+    this.__qz.api.setPromiseType(resolver => new Promise(resolver));
+    this.__qz.api.setWebSocketType(WebSocket);
+    this.__qz.api.setSha256Type(data => sha256(data));
 
-        this.certificateUrl = parameters.certificateUrl || '';
-        this.rawCertificate = parameters.rawCertificate || '';
-        this.signUrl = parameters.signUrl || '';
-        this.printer = required('printer', parameters.printer);
+    this.certificateUrl = required('certificateUrl', parameters.certificateUrl);
+    this.rawCertificate = parameters.rawCertificate || '';
+    this.signUrl = required('signUrl', parameters.signUrl);
+    this.printer = required('printer', parameters.printer);
+  }
+
+  /**
+   * Start QZ Tray Printer
+   * @namespace QZTrayPrinter.start
+   * @returns {Promise<void>}
+   */
+  async start() {
+    try {
+      if (this.rawCertificate) {
+        this.__qz.security.setCertificatePromise((resolve, reject) => resolve(this.rawCertificate));
+      } else {
+        this.__qz.security.setCertificatePromise((resolve, reject) => this.__fetchCertificate().then(resolve, reject));
+      }
+
+      this.__qz.security.setSignaturePromise(toSign => (resolve, reject) => this.__singCertificate(toSign).then(resolve, reject));
+      if (!this.__qz.websocket.isActive()) await this.__printerConnect();
+    } catch (error) {
+      await QZTrayPrinter.__classError(error);
     }
+  }
 
-    /**
-     * Start QZ Tray Printer
-     * @namespace QZTrayPrinter.start
-     * @returns {Promise<void>}
-     */
-    async start() {
-        try {
-            if (this.rawCertificate || !this.certificateUrl) {
-                this.__qz.security.setCertificatePromise((resolve, reject) => resolve(this.rawCertificate));
-            } else {
-                this.__qz.security.setCertificatePromise((resolve, reject) => this.__fetchCertificate().then(resolve, reject));
-            }
-
-            if (!this.signUrl) {
-                this.__qz.security.setSignaturePromise(toSign => (resolve, reject) => resolve());
-            } else {
-                this.__qz.security.setSignaturePromise(toSign => (resolve, reject) => this.__singCertificate(toSign).then(resolve, reject));
-            }
-
-            if (!this.__qz.websocket.isActive()) await this.__printerConnect();
-        } catch (error) {
-            await QZTrayPrinter.__classError(error);
-        }
+  /**
+   * Close QZ Tray Printer
+   * @namespace QZTrayPrinter.close
+   * @returns {Promise<void>}
+   */
+  async close() {
+    try {
+      this.__qz.websocket.disconnect();
+    } catch (error) {
+      await QZTrayPrinter.__classError(error);
     }
+  }
 
-    /**
-     * Close QZ Tray Printer
-     * @namespace QZTrayPrinter.close
-     * @returns {Promise<void>}
-     */
-    async close() {
-        try {
-            this.__qz.websocket.disconnect();
-        } catch (error) {
-            await QZTrayPrinter.__classError(error);
-        }
+  async __fetchCertificate() {
+    try {
+      const certificateFetch = await fetch(this.certificateUrl, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+      });
+      const certificateText = await certificateFetch.text();
+      return Promise.resolve(certificateText);
+    } catch (error) {
+      return Promise.reject(error);
     }
+  }
 
-    async __fetchCertificate() {
-        try {
-            const certificateFetch = await fetch(this.certificateUrl, {
-                method: 'GET',
-                mode: 'cors',
-                cache: 'no-cache',
-                headers: {
-                    'Content-Type': 'text/plain',
-                },
-            });
-            const certificateText = await certificateFetch.text();
-            return Promise.resolve(certificateText);
-        } catch (error) {
-            return Promise.reject(error);
-        }
+  async __singCertificate(toSign) {
+    try {
+      const signedCertificateRequest = await fetch(this.signUrl, {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-cache',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ request: toSign }),
+      });
+
+      const signedCertificate = await signedCertificateRequest.json();
+
+      return Promise.resolve(signedCertificate);
+    } catch (error) {
+      return Promise.reject(error);
     }
+  }
 
-    async __singCertificate(toSign) {
-        try {
-            const signedCertificateRequest = await fetch(this.signUrl, {
-                method: 'POST',
-                mode: 'cors',
-                cache: 'no-cache',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    request: toSign,
-                }),
-            });
-
-            const signedCertificate = await signedCertificateRequest.json();
-
-            return Promise.resolve(signedCertificate);
-        } catch (error) {
-            return Promise.reject(error);
-        }
+  /**
+   * @typedef {object} QZTrayPrinterConnectOptions
+   * @property {number} retries
+   * @property {number} delay
+   */
+  /**
+   * @private
+   * Connect to the printer
+   * @param {QZTrayPrinterConnectOptions} options - Printer connection options
+   * @param {boolean} retry - It's a retry call
+   * @returns {Promise<void>}
+   * @private
+   */
+  async __printerConnect(options = {}, retry = false) {
+    try {
+      if (!this.__qz.websocket.isActive()) {
+        if (retry) window.location.assign('qz:launch');
+        await this.__qz.websocket.connect(options);
+      }
+    } catch (error) {
+      if (!retry) {
+        await this.__printerConnect({
+          retries: 2,
+          delay: 1,
+        }, true);
+      } else {
+        await QZTrayPrinter.__classError(error);
+      }
     }
+  }
 
-    /**
-     * @typedef {object} QZTrayPrinterConnectOptions
-     * @property {number} retries
-     * @property {number} delay
-     */
-    /**
-     * @private
-     * Connect to the printer
-     * @param {QZTrayPrinterConnectOptions} options - Printer connection options
-     * @param {boolean} retry - It's a retry call
-     * @returns {Promise<void>}
-     * @private
-     */
-    async __printerConnect(options = {}, retry = false) {
-        try {
-            if (!this.__qz.websocket.isActive()) {
-                if (retry) window.location.assign('qz:launch');
-                await this.__qz.websocket.connect(options);
-            }
-        } catch (error) {
-            if (!retry) {
-                await this.__printerConnect({
-                    retries: 2,
-                    delay: 1,
-                }, true);
-            } else {
-                await QZTrayPrinter.__classError(error);
-            }
-        }
+  /**
+   * HTML Print
+   * @namespace QZTrayPrinter.htmlPrint
+   * @param {string} pageUrl
+   * @param {string} format
+   * @param {QZTrayPrinter_PageConfig} pageOptions
+   * @param {QZTrayPrinter_PrinterConfig} printerOptions
+   * @returns {Promise<void>}
+   */
+  async htmlPrint({
+                    pageUrl,
+                    pageOptions,
+                    printerOptions,
+                    format,
+                  }) {
+    try {
+      const printerTrayOptions = printerOptions || {};
+      const config = this.__qz.configs.create(this.printer, printerTrayOptions);
+      const data = {
+        type: 'html',
+        format: format || 'file',
+        data: pageUrl,
+        options: pageOptions || {},
+      };
+      await this.__qz.print(config, [data]);
+    } catch (error) {
+      await QZTrayPrinter.__classError(error);
     }
+  }
 
-    /**
-     * HTML Print
-     * @namespace QZTrayPrinter.htmlPrint
-     * @param {string} pageUrl
-     * @param {string} format
-     * @param {QZTrayPrinter_PageConfig} pageOptions
-     * @param {QZTrayPrinter_PrinterConfig} printerOptions
-     * @returns {Promise<void>}
-     */
-    async htmlPrint({
-        pageUrl,
-        pageOptions,
-        printerOptions,
-        format,
-    }) {
-        try {
-            const printerTrayOptions = printerOptions || {};
-            const config = this.__qz.configs.create(this.printer, printerTrayOptions);
-            const data = {
-                type: 'html',
-                format: format || 'file',
-                data: pageUrl,
-                options: pageOptions || {},
-            };
-            await this.__qz.print(config, [data]);
-        } catch (error) {
-            await QZTrayPrinter.__classError(error);
-        }
+  /**
+   * PDF Print
+   * @namespace QZTrayPrinter.pdfPrint
+   * @param {string} pdfData
+   * @param {boolean} isBase64
+   * @param {QZTrayPrinter_PageConfig} pageOptions
+   * @param {QZTrayPrinter_PrinterConfig} printerOptions
+   * @returns {Promise<void>}
+   */
+  async pdfPrint({
+                   pdfData,
+                   isBase64,
+                   pageOptions,
+                   printerOptions,
+                 }) {
+    try {
+      const printerTrayOptions = printerOptions || {};
+      const config = this.__qz.configs.create(this.printer, printerTrayOptions);
+      const data = [
+        {
+          type: 'pdf',
+          data: pdfData,
+          options: pageOptions || {},
+        },
+      ];
+      if (isBase64) data.format = 'base64';
+      await this.__qz.print(config, data);
+    } catch (error) {
+      await QZTrayPrinter.__classError(error);
     }
+  }
 
-    /**
-     * PDF Print
-     * @namespace QZTrayPrinter.pdfPrint
-     * @param {string} pdfData
-     * @param {boolean} isBase64
-     * @param {QZTrayPrinter_PageConfig} pageOptions
-     * @param {QZTrayPrinter_PrinterConfig} printerOptions
-     * @returns {Promise<void>}
-     */
-    async pdfPrint({
-        pdfData,
-        isBase64,
-        pageOptions,
-        printerOptions,
-    }) {
-        try {
-            const printerTrayOptions = printerOptions || {};
-            const config = this.__qz.configs.create(this.printer, printerTrayOptions);
-            const data = [{
-                type: 'pdf',
-                data: pdfData,
-                options: pageOptions || {},
-            }, ];
-            if (isBase64) data.format = 'base64';
-            await this.__qz.print(config, data);
-        } catch (error) {
-            await QZTrayPrinter.__classError(error);
-        }
+  /**
+   * Image Print
+   * @namespace QZTrayPrinter.imagePrint
+   * @param {string} imgData
+   * @param {boolean} isBase64
+   * @param {QZTrayPrinter_PageConfig} pageOptions
+   * @param {QZTrayPrinter_PrinterConfig} printerOptions
+   * @returns {Promise<void>}
+   */
+  async imagePrint({
+                     imgData,
+                     isBase64,
+                     pageOptions,
+                     printerOptions,
+                   }) {
+    try {
+      const printerTrayOptions = printerOptions || {};
+      const config = this.__qz.configs.create(this.printer, printerTrayOptions);
+      const data = [
+        {
+          type: 'image',
+          data: imgData,
+          options: pageOptions || {},
+        },
+      ];
+      if (isBase64) data.format = 'base64';
+      await this.__qz.print(config, [data]);
+    } catch (error) {
+      await QZTrayPrinter.__classError(error);
     }
+  }
 
-    /**
-     * Image Print
-     * @namespace QZTrayPrinter.imagePrint
-     * @param {string} imgData
-     * @param {boolean} isBase64
-     * @param {QZTrayPrinter_PageConfig} pageOptions
-     * @param {QZTrayPrinter_PrinterConfig} printerOptions
-     * @returns {Promise<void>}
-     */
-    async imagePrint({
-        imgData,
-        isBase64,
-        pageOptions,
-        printerOptions,
-    }) {
-        try {
-            const printerTrayOptions = printerOptions || {};
-            const config = this.__qz.configs.create(this.printer, printerTrayOptions);
-            const data = [{
-                type: 'image',
-                data: imgData,
-                options: pageOptions || {},
-            }, ];
-            if (isBase64) data.format = 'base64';
-            await this.__qz.print(config, [data]);
-        } catch (error) {
-            await QZTrayPrinter.__classError(error);
-        }
+  /**
+   * Raw Print
+   * @namespace QZTrayPrinter.rawPrint
+   * @param {array} rawData
+   * @param {QZTrayPrinter_PageConfig} pageOptions
+   * @param {QZTrayPrinter_PrinterConfig} printerOptions
+   * @returns {Promise<void>}
+   */
+  async rawPrint({
+                   rawData,
+                   pageOptions,
+                   printerOptions,
+                 }) {
+    try {
+      const printerTrayOptions = printerOptions || {};
+      const config = this.__qz.configs.create(this.printer, printerTrayOptions);
+      await this.__qz.print(config, rawData);
+    } catch (error) {
+      await QZTrayPrinter.__classError(error);
     }
+  }
 
-    /**
-     * Raw Print
-     * @namespace QZTrayPrinter.rawPrint
-     * @param {array} rawData
-     * @param {QZTrayPrinter_PageConfig} pageOptions
-     * @param {QZTrayPrinter_PrinterConfig} printerOptions
-     * @returns {Promise<void>}
-     */
-    async rawPrint({
-        rawData,
-        pageOptions,
-        printerOptions,
-    }) {
-        try {
-            const printerTrayOptions = printerOptions || {};
-            const config = this.__qz.configs.create(this.printer, printerTrayOptions);
-            await this.__qz.print(config, rawData);
-        } catch (error) {
-            await QZTrayPrinter.__classError(error);
-        }
-    }
-
-    static async __classError(error) {
-        logError(error);
-    }
+  static async __classError(error) {
+    logError(error);
+  }
 }
 
-export default QZTrayPrinter
+export default QZTrayPrinter;
