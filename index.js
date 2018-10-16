@@ -1,12 +1,16 @@
 /* eslint-disable no-underscore-dangle */
 import QzTray from 'qz-tray';
 import sha256 from 'js-sha256';
-import { logError, logInfo, required } from './helpers';
+import {
+    logError,
+    logInfo,
+    required,
+} from './helpers';
 
 /**
+ * QZ Tray class wrapper
  * @version 1.0
  * @overview QZTrayPrinter
- * QZ Tray class wrapper
  * @class QZTrayPrinter
  * @requires Axios
  * @requires QzTray
@@ -88,9 +92,9 @@ class QZTrayPrinter {
         this.__qz.api.setWebSocketType(WebSocket);
         this.__qz.api.setSha256Type(data => sha256(data));
 
-        this.certificateUrl = required('certificateUrl', parameters.certificateUrl);
+        this.certificateUrl = parameters.certificateUrl || '';
         this.rawCertificate = parameters.rawCertificate || '';
-        this.signUrl = required('signUrl', parameters.signUrl);
+        this.signUrl = parameters.signUrl || '';
         this.printer = required('printer', parameters.printer);
     }
 
@@ -101,13 +105,18 @@ class QZTrayPrinter {
      */
     async start() {
         try {
-            if (this.rawCertificate) {
+            if (this.rawCertificate || !this.certificateUrl) {
                 this.__qz.security.setCertificatePromise((resolve, reject) => resolve(this.rawCertificate));
             } else {
                 this.__qz.security.setCertificatePromise((resolve, reject) => this.__fetchCertificate().then(resolve, reject));
             }
 
-            this.__qz.security.setSignaturePromise(toSign => (resolve, reject) => this.__singCertificate(toSign).then(resolve, reject));
+            if (!this.signUrl) {
+                this.__qz.security.setSignaturePromise(toSign => (resolve, reject) => resolve());
+            } else {
+                this.__qz.security.setSignaturePromise(toSign => (resolve, reject) => this.__singCertificate(toSign).then(resolve, reject));
+            }
+
             if (!this.__qz.websocket.isActive()) await this.__printerConnect();
         } catch (error) {
             await QZTrayPrinter.__classError(error);
@@ -153,7 +162,9 @@ class QZTrayPrinter {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ request: toSign }),
+                body: JSON.stringify({
+                    request: toSign,
+                }),
             });
 
             const signedCertificate = await signedCertificateRequest.json();
@@ -312,4 +323,4 @@ class QZTrayPrinter {
     }
 }
 
-export default QZTrayPrinter;
+export default QZTrayPrinter
